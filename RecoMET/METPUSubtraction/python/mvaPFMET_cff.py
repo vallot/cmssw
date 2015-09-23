@@ -38,7 +38,8 @@ puJetIdForPFMVAMEt = pileupJetIdEvaluator.clone(
             "frac04",
             "frac05"
             ),
-        tmvaWeights = cms.string("RecoJets/JetProducers/data/TMVAClassificationCategory_JetID_MET_53X_Dec2012.weights.xml.gz"),
+        etaBinnedWeights = cms.bool(False),
+	tmvaWeights = cms.string("RecoJets/JetProducers/data/TMVAClassificationCategory_JetID_MET_53X_Dec2012.weights.xml.gz"),
         tmvaMethod = cms.string("JetID"),
         tmvaSpectators = cms.vstring(),
         JetIdParams = JetIdParams,                  
