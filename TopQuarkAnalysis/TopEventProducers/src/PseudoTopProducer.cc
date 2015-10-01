@@ -58,10 +58,12 @@ void PseudoTopProducer::produce(edm::Event& event, const edm::EventSetup& eventS
 
   // Collect unstable B-hadrons
   std::set<size_t> bHadronIdxs;
+  std::set<const reco::Candidate*> allHadronDaus;
   for ( size_t i=0, n=genParticleHandle->size(); i<n; ++i )
   {
     const reco::Candidate& p = genParticleHandle->at(i);
     const int status = p.status();
+    if ( status != 4 and abs(p.pdgId()) > 100 ) insertAllDaughters(&p, allHadronDaus);
     if ( status == 1 ) continue;
 
     // Collect B-hadrons, to be used in b tagging
@@ -80,7 +82,8 @@ void PseudoTopProducer::produce(edm::Event& event, const edm::EventSetup& eventS
     ++nStables;
     if ( p.numberOfMothers() == 0 ) continue; // Skip orphans (if exists)
     if ( p.mother()->status() == 4 ) continue; // Treat particle as hadronic if directly from the incident beam (protect orphans in MINIAOD)
-    if ( isFromHadron(&p) ) continue;
+    if ( allHadronDaus.find(&p) != allHadronDaus.end() ) continue;
+    if ( allHadronDaus.find(p.mother()) != allHadronDaus.end() ) continue; // Check mother is hadron decay product (needed for MiniAOD)
     switch ( absPdgId )
     {
       case 11: case 13: // Leptons
@@ -444,18 +447,18 @@ const reco::Candidate* PseudoTopProducer::getLast(const reco::Candidate* p)
   return p;
 }
 
-bool PseudoTopProducer::isFromHadron(const reco::Candidate* p) const
+void PseudoTopProducer::insertAllDaughters(const reco::Candidate* p, std::set<const reco::Candidate*>& list) const
 {
-  for ( size_t i=0, n=p->numberOfMothers(); i<n; ++i )
-  {
-    const reco::Candidate* mother = p->mother(i);
-    if ( mother->numberOfMothers() == 0 ) continue; // Skip incident beam
-    const int pdgId = abs(mother->pdgId());
+  if ( !p ) return;
+  if ( list.find(p) != list.end() ) return; // Skip if already in the list
 
-    if ( pdgId > 100 ) return true;
-    else if ( isFromHadron(mother) ) return true;
+  list.insert(p);
+  for ( size_t i=0, n=p->numberOfDaughters(); i<n; ++i )
+  {
+    const reco::Candidate* dau = p->daughter(i);
+    list.insert(dau);
+    insertAllDaughters(dau, list);
   }
-  return false;
 }
 
 bool PseudoTopProducer::isBHadron(const reco::Candidate* p) const
