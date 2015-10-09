@@ -58,12 +58,10 @@ void PseudoTopProducer::produce(edm::Event& event, const edm::EventSetup& eventS
 
   // Collect unstable B-hadrons
   std::set<size_t> bHadronIdxs;
-  std::set<const reco::Candidate*> allHadronDaus;
   for ( size_t i=0, n=genParticleHandle->size(); i<n; ++i )
   {
     const reco::Candidate& p = genParticleHandle->at(i);
     const int status = p.status();
-    if ( status != 4 and abs(p.pdgId()) > 100 ) insertAllDaughters(&p, allHadronDaus);
     if ( status == 1 ) continue;
 
     // Collect B-hadrons, to be used in b tagging
@@ -82,8 +80,7 @@ void PseudoTopProducer::produce(edm::Event& event, const edm::EventSetup& eventS
     ++nStables;
     if ( p.numberOfMothers() == 0 ) continue; // Skip orphans (if exists)
     if ( p.mother()->status() == 4 ) continue; // Treat particle as hadronic if directly from the incident beam (protect orphans in MINIAOD)
-    if ( allHadronDaus.find(&p) != allHadronDaus.end() ) continue;
-    if ( allHadronDaus.find(p.mother()) != allHadronDaus.end() ) continue; // Check mother is hadron decay product (needed for MiniAOD)
+    if ( isHadron(absPdgId) or isFromHadron(&p) ) continue;
     switch ( absPdgId )
     {
       case 11: case 13: // Leptons
@@ -173,12 +170,12 @@ void PseudoTopProducer::produce(edm::Event& event, const edm::EventSetup& eventS
     const reco::Candidate& p = finalStateHandle->at(i);
     if ( p.status() != 1 ) continue;
     if ( std::isnan(p.pt()) or p.pt() <= 0 ) continue;
-    switch ( std::abs(p.pdgId()) )
+    const int aid = abs(p.pdgId());
+    if ( aid == 12 or aid == 14 or aid == 16 )
     {
-      case 12: case 14: case 16:
-        metX += p.px();
-        metY += p.py();
-        break;
+      metX += p.px();
+      metY += p.py();
+      continue;
     }
 
     if ( lepDauIdxs.find(i) != lepDauIdxs.end() ) continue;
@@ -216,7 +213,7 @@ void PseudoTopProducer::produce(edm::Event& event, const edm::EventSetup& eventS
     std::vector<reco::CandidatePtr> constituents;
     bool hasBHadron = false;
     for ( size_t j=0, m=fjConstituents.size(); j<m; ++j )
-    { 
+    {
       const size_t index = fjConstituents[j].user_index();
       if ( bHadronIdxs.find(index) != bHadronIdxs.end() ) hasBHadron = true;
       reco::CandidatePtr cand;
@@ -229,7 +226,7 @@ void PseudoTopProducer::produce(edm::Event& event, const edm::EventSetup& eventS
       if ( cand.isNull() ) continue;
       constituents.push_back(cand);
     }
-    
+
     const LorentzVector jetP4(fjJet.px(), fjJet.py(), fjJet.pz(), fjJet.E());
     reco::GenJet genJet;
     reco::writeSpecific(genJet, jetP4, genVertex_, constituents, eventSetup);
@@ -286,14 +283,14 @@ void PseudoTopProducer::produce(edm::Event& event, const edm::EventSetup& eventS
 
     // Cleanup W candidate, choose pairs with minimum dm if they share decay products
     cleanup(wLepCandIdxs);
-    cleanup(wHadCandIdxs);
+    cleanup(wHadCandIdxs, true);
     const size_t nWLepCand = wLepCandIdxs.size();
     const size_t nWHadCand = wHadCandIdxs.size();
 
     if ( nWLepCand + nWHadCand < 2 ) break; // We skip single top
 
     int w1Q = 1, w2Q = -1;
-    int w1dau1Id = 1, w2dau1Id = 1;
+    int w1dau1Id = 1, w2dau1Id = -1;
     LorentzVector w1dau1LVec, w1dau2LVec;
     LorentzVector w2dau1LVec, w2dau2LVec;
     if ( nWLepCand == 0 ) // Full hadronic case
@@ -383,13 +380,13 @@ void PseudoTopProducer::produce(edm::Event& event, const edm::EventSetup& eventS
     reco::GenParticle w1(w1Q, w1LVec, genVertex_, w1Q*24, 3, true);
     reco::GenParticle b1(0, b1LVec, genVertex_, w1Q*5, 1, true);
     reco::GenParticle p1(w1Q, w1dau1LVec, genVertex_, w1dau1Id, 1, true);
-    reco::GenParticle q1(0, w1dau2LVec, genVertex_, -w1dau1Id+1, 1, true);
+    reco::GenParticle q1(0, w1dau2LVec, genVertex_, -w1dau1Id+w1Q, 1, true);
 
     reco::GenParticle t2(w2Q*2/3, t2LVec, genVertex_, w2Q*6, 3, false);
     reco::GenParticle w2(w2Q, w2LVec, genVertex_, w2Q*24, 3, true);
     reco::GenParticle b2(0, b2LVec, genVertex_, w2Q*5, 1, true);
     reco::GenParticle p2(w2Q, w2dau1LVec, genVertex_, w2dau1Id, 1, true);
-    reco::GenParticle q2(0, w2dau2LVec, genVertex_, -w2dau1Id+1, 1, true);
+    reco::GenParticle q2(0, w2dau2LVec, genVertex_, -w2dau1Id+w2Q, 1, true);
 
     pseudoTop->push_back(t1);
     pseudoTop->push_back(t2);
@@ -461,6 +458,61 @@ void PseudoTopProducer::insertAllDaughters(const reco::Candidate* p, std::set<co
   }
 }
 
+bool PseudoTopProducer::isHadron(const int pdgId) const
+{
+  const unsigned int aid = abs(pdgId);
+  if ( aid/10000000 > 0 ) return false; // particle with extra bit is not a hadron
+  if ( aid <= 100 ) return false; // Hadrons have pdgId > 100
+
+  const unsigned char nj  = aid % 10;
+  const unsigned char nq3 = (aid/10) % 10;
+  const unsigned char nq2 = (aid/100) % 10;
+  const unsigned char nq1 = (aid/1000) % 10;
+
+  // Check for penta quarks, 9 at the 8th digit
+  if ( (aid/1000000) % 10 == 9 )
+  {
+    const unsigned char nl  = (aid/10000) % 10;
+    const unsigned char nr  = (aid/100000) % 10;
+
+    if ( nr != 9 && nr != 0 && nj != 9 && nj != 0 &&
+         nq1+nq2+nq3 != 0 &&
+         nq2 <= nq1 && nq1 <= nl && nl <= nr ) return true;
+  }
+
+  // Continue to usual mesons and baryons
+  const int fundID = (nq1+nq2 == 0) ? aid%10000 : 0;
+  if( fundID <= 100 && fundID > 0 ) return false;
+
+  const std::set<unsigned int> hadronIds = {
+    130, 310, 210, // ordinary mesons
+    150, 350, 510, 530, // EvtGen specific numbers
+    110, 990, 9990, // pomerons, etc
+    2110, 2210, // Baryons
+  };
+  if ( hadronIds.find(aid) != hadronIds.end() ) return true;
+
+  if( nj > 0 && nq3 > 0 && nq2 > 0 )
+  {
+    if ( nq1 == 0 && (nq3 != nq2 || pdgId >= 0) ) return true;
+    if ( nq1 > 0 ) return true;
+  }
+
+  return false;
+}
+
+bool PseudoTopProducer::isFromHadron(const reco::Candidate* p) const
+{
+  for ( int i=0, n=p->numberOfMothers(); i<n; ++i )
+  {
+    const reco::Candidate* mother = p->mother(i);
+    if ( !mother or mother->numberOfMothers() == 0 ) continue; // reaches to incident beam or top level
+    if ( isHadron(mother->pdgId()) or isFromHadron(mother) ) return true;
+  }
+
+  return false;
+}
+
 bool PseudoTopProducer::isBHadron(const reco::Candidate* p) const
 {
   const unsigned int absPdgId = abs(p->pdgId());
@@ -497,7 +549,7 @@ bool PseudoTopProducer::isBHadron(const unsigned int absPdgId) const
 }
 
 reco::GenParticleRef PseudoTopProducer::buildGenParticle(const reco::Candidate* p, reco::GenParticleRefProd& refHandle,
-                                                               std::auto_ptr<reco::GenParticleCollection>& outColl) const
+                                                         std::auto_ptr<reco::GenParticleCollection>& outColl) const
 {
   reco::GenParticle pOut(*dynamic_cast<const reco::GenParticle*>(p));
   pOut.clearMothers();
@@ -510,7 +562,7 @@ reco::GenParticleRef PseudoTopProducer::buildGenParticle(const reco::Candidate* 
   return reco::GenParticleRef(refHandle, outColl->size()-1);
 }
 
-void PseudoTopProducer::cleanup(std::map<double, std::pair<size_t, size_t> >& v) const
+void PseudoTopProducer::cleanup(std::map<double, std::pair<size_t, size_t> >& v, const bool doCrossCleanup) const
 {
   std::vector<std::map<double, std::pair<size_t, size_t> >::const_iterator> toErase;
   std::set<size_t> usedLeg1, usedLeg2;
@@ -518,15 +570,26 @@ void PseudoTopProducer::cleanup(std::map<double, std::pair<size_t, size_t> >& v)
   {
     const size_t leg1 = key->second.first;
     const size_t leg2 = key->second.second;
-    if ( usedLeg1.find(leg1) == usedLeg1.end() and
-         usedLeg2.find(leg2) == usedLeg2.end() )
+    if ( !doCrossCleanup )
     {
-      usedLeg1.insert(leg1);
-      usedLeg2.insert(leg2);
+      if ( usedLeg1.find(leg1) == usedLeg1.end() and
+          usedLeg2.find(leg2) == usedLeg2.end() )
+      {
+        usedLeg1.insert(leg1);
+        usedLeg2.insert(leg2);
+      }
+      else
+      {
+        toErase.push_back(key);
+      }
     }
-    else
-    {
-      toErase.push_back(key);
+    else {
+      if ( usedLeg1.find(leg1) == usedLeg1.end() and usedLeg1.find(leg2) == usedLeg1.end() )
+      {
+        usedLeg1.insert(leg1);
+        usedLeg1.insert(leg2);
+      }
+      else toErase.push_back(key);
     }
   }
   for ( auto& key : toErase ) v.erase(key);

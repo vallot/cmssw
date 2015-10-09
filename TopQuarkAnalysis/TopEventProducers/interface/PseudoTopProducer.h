@@ -19,6 +19,8 @@ public:
   void produce(edm::Event& event, const edm::EventSetup& eventSetup) override;
 
 private:
+  bool isHadron(const int pdgId) const;
+  bool isFromHadron(const reco::Candidate* p) const;
   bool isBHadron(const reco::Candidate* p) const;
   bool isBHadron(const unsigned int pdgId) const;
   void insertAllDaughters(const reco::Candidate* p, std::set<const reco::Candidate*>& list) const;
@@ -26,7 +28,7 @@ private:
   const reco::Candidate* getLast(const reco::Candidate* p);
   reco::GenParticleRef buildGenParticle(const reco::Candidate* p, reco::GenParticleRefProd& refHandle,
                                         std::auto_ptr<reco::GenParticleCollection>& outColl) const;
-  void cleanup(std::map<double, std::pair<size_t, size_t> >&) const;
+  void cleanup(std::map<double, std::pair<size_t, size_t> >&, const bool doCrossCleanup=false) const;
 
   typedef reco::Particle::LorentzVector LorentzVector;
 
