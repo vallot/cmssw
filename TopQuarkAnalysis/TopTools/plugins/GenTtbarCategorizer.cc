@@ -43,8 +43,7 @@
      x43: at least 2 additional c jets with all having =1 c hadron
      x42: exactly 1 additional c jet having >=2 c hadrons
      x41: exactly 1 additional c jet having =1 c hadron
-     x00: No additional b or c jet, i.e. only light flavour jets or no additional jets
-     x01 or x02 is subset of x00
+     x00: No additional b or c jet, i.e. no even light flavour additional jets
      x01: No additional b or c jet, i.e. exactly one light flavour additional jets
      x02: No additional b or c jet, i.e. at least two light flavour additional jets
 */
@@ -360,9 +359,10 @@ GenTtbarCategorizer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
         // tt + no additional c jets
         else{
             // tt + light jets
-            additionalJetEventId += 0;
-            if( nlightflavourJetAdditional == 1 ) additionalJetEventId += 1;
-            if( nlightflavourJetAdditional > 1 ) additionalJetEventId += 2;
+            //additionalJetEventId += 0;
+            if( nlightflavourJetAdditional == 0 ) additionalJetEventId += 0;
+            else if( nlightflavourJetAdditional == 1 ) additionalJetEventId += 1;
+            else additionalJetEventId += 2;
         }
     }
     
