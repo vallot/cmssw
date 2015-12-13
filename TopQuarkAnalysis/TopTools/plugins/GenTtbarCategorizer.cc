@@ -44,6 +44,9 @@
      x42: exactly 1 additional c jet having >=2 c hadrons
      x41: exactly 1 additional c jet having =1 c hadron
      x00: No additional b or c jet, i.e. only light flavour jets or no additional jets
+     x01 or x02 is subset of x00
+     x01: No additional b or c jet, i.e. exactly one light flavour additional jets
+     x02: No additional b or c jet, i.e. at least two light flavour additional jets
 */
 //
 // Original Author:  Johannes Hauk, Nazar Bartosik
@@ -218,8 +221,10 @@ GenTtbarCategorizer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     std::map<int, int> bJetAdditionalIds;
     // C jets with c hadrons before top quark decay chain
     std::map<int, int> cJetAdditionalIds;
-    
-    
+    // light flavour jets
+    int nlightflavourJetAdditional;
+   
+ 
     // Count number of specific b hadrons in each jet
     for(size_t hadronId = 0; hadronId < genBHadIndex->size(); ++hadronId) {
         // Index of jet associated to the hadron
@@ -247,7 +252,13 @@ GenTtbarCategorizer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
         if(bJetAdditionalIds.count(jetIndex) < 1) bJetAdditionalIds[jetIndex] = 1;
         else bJetAdditionalIds[jetIndex]++;
     }
-    
+   
+    //to categorize the events further for ttbar+one jet or ttbar + two jets
+    nlightflavourJetAdditional = 0;
+    for(size_t jetIndex = 0; jetIndex < genJets->size(); ++jetIndex){ 
+      if(bJetFromTopIds.count(jetIndex) < 1) nlightflavourJetAdditional++;
+    } 
+ 
     // Cleaning up b jets from W->b decays
     for(std::map<int, int>::iterator it = bJetFromWIds.begin(); it != bJetFromWIds.end(); ) {
         // Cannot be a b jet from t->b decay
@@ -350,6 +361,8 @@ GenTtbarCategorizer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
         else{
             // tt + light jets
             additionalJetEventId += 0;
+            if( nlightflavourJetAdditional == 1 ) additionalJetEventId += 1;
+            if( nlightflavourJetAdditional > 1 ) additionalJetEventId += 2;
         }
     }
     
