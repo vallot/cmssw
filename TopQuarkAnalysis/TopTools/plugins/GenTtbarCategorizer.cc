@@ -255,6 +255,8 @@ GenTtbarCategorizer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     //to categorize the events further for ttbar+one jet or ttbar + two jets
     nlightflavourJetAdditional = 0;
     for(size_t jetIndex = 0; jetIndex < genJets->size(); ++jetIndex){ 
+      if(genJets->at(jetIndex).pt() < genJetPtMin_) continue;
+      if(std::fabs(genJets->at(jetIndex).eta()) > genJetAbsEtaMax_) continue;
       if(bJetFromTopIds.count(jetIndex) < 1) nlightflavourJetAdditional++;
     } 
  
