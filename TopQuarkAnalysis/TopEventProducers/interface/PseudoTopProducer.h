@@ -19,7 +19,6 @@ public:
   void produce(edm::Event& event, const edm::EventSetup& eventSetup) override;
 
 private:
-  bool isHadron(const int pdgId) const;
   bool isFromHadron(const reco::Candidate* p) const;
   bool isBHadron(const reco::Candidate* p) const;
   bool isBHadron(const unsigned int pdgId) const;
@@ -33,8 +32,13 @@ private:
 private:
   const edm::EDGetTokenT<edm::View<reco::Candidate> > finalStateToken_;
   const edm::EDGetTokenT<edm::View<reco::Candidate> > genParticleToken_;
-  const double leptonMinPt_, leptonMaxEta_, jetMinPt_, jetMaxEta_;
+  const double minLeptonPt_, maxLeptonEta_, minJetPt_, maxJetEta_;
   const double wMass_, tMass_;
+  const double minLeptonPtDilepton_, maxLeptonEtaDilepton_;
+  const double minDileptonMassDilepton_;
+  const double minLeptonPtSemilepton_, maxLeptonEtaSemilepton_;
+  const double minVetoLeptonPtSemilepton_, maxVetoLeptonEtaSemilepton_;
+  const double minMETSemiLepton_, minMtWSemiLepton_;
 
   typedef fastjet::JetDefinition JetDef;
   std::shared_ptr<JetDef> fjLepDef_, fjJetDef_;
