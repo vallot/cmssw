@@ -31,7 +31,7 @@ void PhotonEnergyCalibratorRun2::calibrate(SimplePhoton &photon, edm::StreamID c
     float aeta = std::abs(photon.getEta()); //, r9 = photon.getR9();
 //	float et = photon.getNewEnergy()/cosh(aeta);
 
-	//scale = _correctionRetriever.ScaleCorrection(photon.getRunNumber(), photon.isEB(), photon.getR9(), aeta, et);
+	scale = _correctionRetriever.ScaleCorrection(photon.getRunNumber(), photon.isEB(), photon.getR9(), aeta, et);
 	smear = _correctionRetriever.getSmearingSigma(photon.getRunNumber(), photon.getNewEnergy(), photon.isEB(), photon.getR9(), aeta); 
   
     double newEcalEnergy, newEcalEnergyError;
