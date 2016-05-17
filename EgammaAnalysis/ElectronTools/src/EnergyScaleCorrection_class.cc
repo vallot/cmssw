@@ -393,8 +393,10 @@ float EnergyScaleCorrection_class::getSmearingSigma(int runNumber, float energy,
     // 	smearings_not_defined[category] = corr;
     // }
     corr_itr = smearings_not_defined.find(category);
+    /*
     std::cerr << "[WARNING] Category not found: " << std::endl;
     std::cerr << category << std::endl;
+    */
     //     exit(1);
   }
   
