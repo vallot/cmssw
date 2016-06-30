@@ -180,7 +180,7 @@ void PseudoTopProducer::produce(edm::Event& event, const edm::EventSetup& eventS
 
     const double scale = 1e-20/p.p();
     fjJetInputs.push_back(fastjet::PseudoJet(p.px()*scale, p.py()*scale, p.pz()*scale, p.energy()*scale));
-    fjJetInputs.back().set_user_index(index);
+    fjJetInputs.back().set_user_index(-(index+1)); // subtract by another 1 to make it negative-definite
   }
 
   //// Run the jet algorithm
@@ -199,8 +199,8 @@ void PseudoTopProducer::produce(edm::Event& event, const edm::EventSetup& eventS
     std::vector<reco::CandidatePtr> constituents;
     bool hasBHadron = false;
     for ( size_t j=0, m=fjConstituents.size(); j<m; ++j ) {
-      const size_t index = fjConstituents[j].user_index();
-      if ( bHadronIdxs.find(index) != bHadronIdxs.end() ) {
+      const int index = fjConstituents[j].user_index();
+      if ( index < 0 and bHadronIdxs.find(-index-1) != bHadronIdxs.end() ) {
         hasBHadron = true;
         continue;
       }
